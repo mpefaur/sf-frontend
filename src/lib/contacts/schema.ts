@@ -52,6 +52,11 @@ export const contactInputSchema = z.object({
     .transform((value) => value || null)
     .nullable()
     .default(null),
+  photo: z
+    .string()
+    .transform((value) => value || null)
+    .nullable()
+    .default(null),
 }) satisfies z.ZodType<ContactInput, unknown>;
 
 export type ContactFormValues = z.input<typeof contactInputSchema>;
@@ -210,9 +215,21 @@ export const CONTACT_FIELD_GROUPS: ContactFieldGroup[] = [
   },
 ];
 
-export const CONTACT_FIELDS: ContactFieldSpec[] = CONTACT_FIELD_GROUPS.flatMap(
-  (group) => group.fields,
-);
+/**
+ * Photo is collected by `PhotoField`, rendered outside the `CONTACT_FIELD_GROUPS`
+ * loop (see plan.md's "Design decision"), but still needs a `ContactFieldSpec` so
+ * `formDataToValues` picks it up on every submission.
+ */
+const PHOTO_FIELD: ContactFieldSpec = {
+  name: "photo",
+  label: "Photo",
+  maxLength: 0,
+};
+
+export const CONTACT_FIELDS: ContactFieldSpec[] = [
+  ...CONTACT_FIELD_GROUPS.flatMap((group) => group.fields),
+  PHOTO_FIELD,
+];
 
 /** Pull the contact fields out of a submitted form, as raw strings. */
 export function formDataToValues(
