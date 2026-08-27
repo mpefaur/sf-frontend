@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ContactInput } from "./types";
+import type { AddressInput, ContactInput } from "./types";
 
 /**
  * Client/server-shared validation for the contact form.
@@ -28,6 +28,16 @@ function requiredText(max: number, label: string) {
     .max(max, `${label} must be ${max} characters or fewer`);
 }
 
+/** One address row inside the `addresses` JSON payload (see `AddressesField`). */
+export const addressInputSchema = z.object({
+  type: z.enum(["Home", "Work", "Other"]),
+  street: optionalText(300, "Street address"),
+  city: optionalText(120, "City"),
+  state: optionalText(120, "State"),
+  postal_code: optionalText(20, "Postal code"),
+  country: optionalText(120, "Country"),
+}) satisfies z.ZodType<AddressInput, unknown>;
+
 export const contactInputSchema = z.object({
   first_name: requiredText(100, "First name"),
   last_name: requiredText(100, "Last name"),
@@ -41,11 +51,6 @@ export const contactInputSchema = z.object({
   phone: optionalText(40, "Phone"),
   company: optionalText(200, "Company"),
   job_title: optionalText(200, "Job title"),
-  address: optionalText(300, "Address"),
-  city: optionalText(120, "City"),
-  state: optionalText(120, "State"),
-  postal_code: optionalText(20, "Postal code"),
-  country: optionalText(120, "Country"),
   notes: z
     .string()
     .trim()
@@ -57,6 +62,24 @@ export const contactInputSchema = z.object({
     .transform((value) => value || null)
     .nullable()
     .default(null),
+  addresses: z.string().transform((raw) => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw || "[]");
+    } catch {
+      return [];
+    }
+    if (!Array.isArray(parsed)) return [];
+
+    // Each entry is validated independently: a full-replace PUT means one
+    // malformed row must not silently delete every other, otherwise-valid,
+    // saved address (unlike array-level validation, which fails the whole
+    // list on a single bad entry).
+    return parsed.flatMap((entry) => {
+      const result = addressInputSchema.safeParse(entry);
+      return result.success ? [result.data] : [];
+    });
+  }),
 }) satisfies z.ZodType<ContactInput, unknown>;
 
 export type ContactFormValues = z.input<typeof contactInputSchema>;
@@ -158,48 +181,6 @@ export const CONTACT_FIELD_GROUPS: ContactFieldGroup[] = [
     ],
   },
   {
-    title: "Address",
-    description: "Optional postal details.",
-    fields: [
-      {
-        name: "address",
-        label: "Street address",
-        maxLength: 300,
-        placeholder: "1 Market St, Suite 400",
-        autoComplete: "street-address",
-        wide: true,
-      },
-      {
-        name: "city",
-        label: "City",
-        maxLength: 120,
-        placeholder: "San Francisco",
-        autoComplete: "address-level2",
-      },
-      {
-        name: "state",
-        label: "State / region",
-        maxLength: 120,
-        placeholder: "CA",
-        autoComplete: "address-level1",
-      },
-      {
-        name: "postal_code",
-        label: "Postal code",
-        maxLength: 20,
-        placeholder: "94105",
-        autoComplete: "postal-code",
-      },
-      {
-        name: "country",
-        label: "Country",
-        maxLength: 120,
-        placeholder: "USA",
-        autoComplete: "country-name",
-      },
-    ],
-  },
-  {
     title: "Notes",
     description: "Anything worth remembering. No length limit.",
     fields: [
@@ -216,9 +197,10 @@ export const CONTACT_FIELD_GROUPS: ContactFieldGroup[] = [
 ];
 
 /**
- * Photo is collected by `PhotoField`, rendered outside the `CONTACT_FIELD_GROUPS`
- * loop (see plan.md's "Design decision"), but still needs a `ContactFieldSpec` so
- * `formDataToValues` picks it up on every submission.
+ * Photo and addresses are collected by `PhotoField`/`AddressesField`, each
+ * rendered outside the `CONTACT_FIELD_GROUPS` loop (see plan.md's "Design
+ * decision", same pattern for both), but still need a `ContactFieldSpec` so
+ * `formDataToValues` picks them up on every submission.
  */
 const PHOTO_FIELD: ContactFieldSpec = {
   name: "photo",
@@ -226,9 +208,16 @@ const PHOTO_FIELD: ContactFieldSpec = {
   maxLength: 0,
 };
 
+const ADDRESSES_FIELD: ContactFieldSpec = {
+  name: "addresses",
+  label: "Addresses",
+  maxLength: 0,
+};
+
 export const CONTACT_FIELDS: ContactFieldSpec[] = [
   ...CONTACT_FIELD_GROUPS.flatMap((group) => group.fields),
   PHOTO_FIELD,
+  ADDRESSES_FIELD,
 ];
 
 /** Pull the contact fields out of a submitted form, as raw strings. */

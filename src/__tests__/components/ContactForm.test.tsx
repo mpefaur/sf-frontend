@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ContactForm from "@/components/contacts/ContactForm";
-import { makeContact } from "../mocks/handlers";
+import { makeAddress, makeContact } from "../mocks/handlers";
 import type { FormState } from "@/lib/contacts/types";
 
 function renderForm(action: jest.Mock, contact?: ReturnType<typeof makeContact>) {
@@ -33,7 +33,7 @@ describe("ContactForm", () => {
     expect(screen.getByLabelText(/first name/i)).toHaveValue("Ada");
     expect(screen.getByLabelText(/^email/i)).toHaveValue("ada@example.com");
     // Nulls become empty inputs rather than the string "null".
-    expect(screen.getByLabelText(/street address/i)).toHaveValue("");
+    expect(screen.getByLabelText(/notes/i)).toHaveValue("");
   });
 
   it("submits the entered values to the action", async () => {
@@ -115,5 +115,33 @@ describe("ContactForm", () => {
 
     const formData = action.mock.calls[0][1];
     expect(formData.get("photo")).toBe("");
+  });
+
+  it("preserves the contact's addresses when submitted without touching them (FR-007)", async () => {
+    const action = jest.fn<Promise<FormState>, [FormState, FormData]>(
+      async () => ({ status: "idle" }),
+    );
+    const addresses = [
+      makeAddress({ id: 1, type: "Home", city: "London" }),
+      makeAddress({ id: 2, type: "Work", city: "San Francisco" }),
+    ];
+    const contact = makeContact({ addresses });
+    renderForm(action, contact);
+
+    await userEvent.click(screen.getByRole("button", { name: /create contact/i }));
+    await waitFor(() => expect(action).toHaveBeenCalled());
+
+    const formData = action.mock.calls[0][1];
+    const submittedAddresses = JSON.parse(formData.get("addresses") as string);
+    expect(submittedAddresses).toEqual(
+      addresses.map(({ type, street, city, state, postal_code, country }) => ({
+        type,
+        street,
+        city,
+        state,
+        postal_code,
+        country,
+      })),
+    );
   });
 });
