@@ -87,4 +87,33 @@ describe("ContactForm", () => {
       "/contacts",
     );
   });
+
+  it("preserves the existing photo when the form is submitted without touching it (FR-008)", async () => {
+    const action = jest.fn<Promise<FormState>, [FormState, FormData]>(
+      async () => ({ status: "idle" }),
+    );
+    const contact = makeContact({ photo: "data:image/png;base64,iVBORw0KGgo=" });
+    renderForm(action, contact);
+
+    await userEvent.click(screen.getByRole("button", { name: /create contact/i }));
+    await waitFor(() => expect(action).toHaveBeenCalled());
+
+    const formData = action.mock.calls[0][1];
+    expect(formData.get("photo")).toBe(contact.photo);
+  });
+
+  it("submits an empty photo after clicking Remove photo", async () => {
+    const action = jest.fn<Promise<FormState>, [FormState, FormData]>(
+      async () => ({ status: "idle" }),
+    );
+    const contact = makeContact({ photo: "data:image/png;base64,iVBORw0KGgo=" });
+    renderForm(action, contact);
+
+    await userEvent.click(screen.getByRole("button", { name: /remove photo/i }));
+    await userEvent.click(screen.getByRole("button", { name: /create contact/i }));
+    await waitFor(() => expect(action).toHaveBeenCalled());
+
+    const formData = action.mock.calls[0][1];
+    expect(formData.get("photo")).toBe("");
+  });
 });

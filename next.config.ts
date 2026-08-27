@@ -49,6 +49,14 @@ const nextConfig: NextConfig = {
   // nothing to do with the backend's :8000. `localhost` and `**.localhost` are
   // already allowed by default; they are listed for the next person reading this.
   allowedDevOrigins: ["localhost", "127.0.0.1", "192.168.0.15"],
+  experimental: {
+    serverActions: {
+      // A 1 MB photo (PhotoField's own limit) grows ~33% once base64-encoded
+      // into a data URI, plus the rest of the contact form's fields — default
+      // 1mb would reject some uploads PhotoField already accepted client-side.
+      bodySizeLimit: "2mb",
+    },
+  },
   // `/` is not a page: the app is the contacts manager. A routing-layer redirect
   // is a real 308, unlike a prerendered page that would meta-refresh the browser.
   async redirects() {
