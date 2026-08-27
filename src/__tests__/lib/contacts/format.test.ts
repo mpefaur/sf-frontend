@@ -1,5 +1,4 @@
 import {
-  addressLine,
   avatarHue,
   formatTimestamp,
   initials,
@@ -46,25 +45,5 @@ describe("jobLine", () => {
     expect(jobLine(makeContact({ company: null }))).toBe("Mathematician");
     expect(jobLine(makeContact({ job_title: null }))).toBe("Analytical Engines");
     expect(jobLine(makeContact({ job_title: null, company: null }))).toBeNull();
-  });
-});
-
-describe("addressLine", () => {
-  it("skips the parts that are not filled in", () => {
-    expect(addressLine(makeContact())).toBe("San Francisco, CA, USA");
-  });
-
-  it("pairs the state with the postal code", () => {
-    expect(
-      addressLine(makeContact({ address: "1 Market St", postal_code: "94105" })),
-    ).toBe("1 Market St, San Francisco, CA 94105, USA");
-  });
-
-  it("returns null when there is no address at all", () => {
-    expect(
-      addressLine(
-        makeContact({ city: null, state: null, country: null, postal_code: null }),
-      ),
-    ).toBeNull();
   });
 });

@@ -13,12 +13,9 @@ function values(overrides: Record<string, string> = {}) {
     phone: "",
     company: "",
     job_title: "",
-    address: "",
-    city: "",
-    state: "",
-    postal_code: "",
-    country: "",
     notes: "",
+    photo: "",
+    addresses: "[]",
     ...overrides,
   };
 }
@@ -58,13 +55,45 @@ describe("contactInputSchema", () => {
 
   it("enforces the API's length limits", () => {
     const result = contactInputSchema.safeParse(
-      values({ first_name: "a".repeat(101), postal_code: "9".repeat(21) }),
+      values({ first_name: "a".repeat(101) }),
     );
 
     expect(zodFieldErrors(result.error!)).toEqual({
       first_name: "First name must be 100 characters or fewer",
-      postal_code: "Postal code must be 20 characters or fewer",
     });
+  });
+
+  it("parses the addresses field from its JSON string", () => {
+    const parsed = contactInputSchema.parse(
+      values({
+        addresses: JSON.stringify([
+          { type: "Home", city: "London", country: "UK" },
+        ]),
+      }),
+    );
+
+    expect(parsed.addresses).toEqual([
+      {
+        type: "Home",
+        street: null,
+        city: "London",
+        state: null,
+        postal_code: null,
+        country: "UK",
+      },
+    ]);
+  });
+
+  it("falls back to an empty address list on malformed JSON", () => {
+    const parsed = contactInputSchema.parse(values({ addresses: "[" }));
+    expect(parsed.addresses).toEqual([]);
+  });
+
+  it("drops an address entry with an invalid type", () => {
+    const parsed = contactInputSchema.parse(
+      values({ addresses: JSON.stringify([{ type: "Vacation" }]) }),
+    );
+    expect(parsed.addresses).toEqual([]);
   });
 });
 

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AlertCircle, Loader2 } from "lucide-react";
 import Field from "@/components/ui/Field";
 import PhotoField from "@/components/contacts/PhotoField";
+import AddressesField from "@/components/contacts/AddressesField";
 import Button, { buttonClasses } from "@/components/ui/Button";
 import { CONTACT_FIELD_GROUPS } from "@/lib/contacts/schema";
 import {
@@ -53,6 +54,7 @@ export default function ContactForm({
   const [photoBusy, setPhotoBusy] = useState(false);
 
   function valueFor(name: keyof ContactInput): string {
+    if (name === "addresses") return state.values?.addresses ?? "";
     return state.values?.[name] ?? contact?.[name] ?? "";
   }
 
@@ -99,6 +101,8 @@ export default function ContactForm({
           </div>
         </fieldset>
       ))}
+
+      <AddressesField defaultValue={contact?.addresses} />
 
       <div className="flex items-center gap-2 border-t border-hairline pt-4">
         <SubmitButton label={submitLabel} disabled={photoBusy} />

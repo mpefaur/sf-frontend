@@ -42,15 +42,3 @@ export function jobLine(contact: Contact): string | null {
   }
   return contact.job_title ?? contact.company ?? null;
 }
-
-/** Single-line postal address, skipping the parts that are not filled in. */
-export function addressLine(contact: Contact): string | null {
-  const parts = [
-    contact.address,
-    contact.city,
-    [contact.state, contact.postal_code].filter(Boolean).join(" "),
-    contact.country,
-  ].filter((part): part is string => Boolean(part && part.trim()));
-
-  return parts.length ? parts.join(", ") : null;
-}
