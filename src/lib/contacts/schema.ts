@@ -62,17 +62,24 @@ export const contactInputSchema = z.object({
     .transform((value) => value || null)
     .nullable()
     .default(null),
-  addresses: z
-    .string()
-    .transform((raw) => {
-      try {
-        return JSON.parse(raw || "[]") as unknown;
-      } catch {
-        return [];
-      }
-    })
-    .pipe(z.array(addressInputSchema))
-    .catch([]),
+  addresses: z.string().transform((raw) => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw || "[]");
+    } catch {
+      return [];
+    }
+    if (!Array.isArray(parsed)) return [];
+
+    // Each entry is validated independently: a full-replace PUT means one
+    // malformed row must not silently delete every other, otherwise-valid,
+    // saved address (unlike array-level validation, which fails the whole
+    // list on a single bad entry).
+    return parsed.flatMap((entry) => {
+      const result = addressInputSchema.safeParse(entry);
+      return result.success ? [result.data] : [];
+    });
+  }),
 }) satisfies z.ZodType<ContactInput, unknown>;
 
 export type ContactFormValues = z.input<typeof contactInputSchema>;

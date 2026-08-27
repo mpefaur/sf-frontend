@@ -89,11 +89,25 @@ describe("contactInputSchema", () => {
     expect(parsed.addresses).toEqual([]);
   });
 
-  it("drops an address entry with an invalid type", () => {
+  it("drops only the invalid entry, keeping the other valid addresses (a full-replace PUT must not delete them)", () => {
     const parsed = contactInputSchema.parse(
-      values({ addresses: JSON.stringify([{ type: "Vacation" }]) }),
+      values({
+        addresses: JSON.stringify([
+          { type: "Vacation" },
+          { type: "Home", city: "London" },
+        ]),
+      }),
     );
-    expect(parsed.addresses).toEqual([]);
+    expect(parsed.addresses).toEqual([
+      {
+        type: "Home",
+        street: null,
+        city: "London",
+        state: null,
+        postal_code: null,
+        country: null,
+      },
+    ]);
   });
 });
 

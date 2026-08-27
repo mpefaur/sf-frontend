@@ -27,7 +27,15 @@ function emptyRow(): Row {
 }
 
 function toRows(addresses: Address[] | undefined): Row[] {
-  return (addresses ?? []).map((address) => ({ ...address, _key: crypto.randomUUID() }));
+  // Keyed by the address's own server-assigned id, not a random one: this
+  // runs during SSR too, and a random key here would differ between the
+  // server-rendered HTML and the client's first render, triggering a
+  // hydration mismatch. `emptyRow`'s random key is safe because it only ever
+  // runs from the client-side "Add address" click, never during SSR.
+  return (addresses ?? []).map((address) => ({
+    ...address,
+    _key: `saved-${address.id}`,
+  }));
 }
 
 function toAddressInput(row: Row): AddressInput {
