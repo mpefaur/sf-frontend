@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import Button from "@/components/ui/Button";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -18,15 +18,25 @@ function readAsDataUrl(file: File): Promise<string> {
 /**
  * File picker + live circular preview + hidden base64 value, rendered outside
  * `ContactForm`'s generic field-group loop (see plan.md's "Design decision").
+ *
+ * `onBusyChange` lets `ContactForm` disable submission while a file is being
+ * read — encoding is async, so without it a submit mid-read would post the
+ * previous value instead of the one the user just picked.
  */
 export default function PhotoField({
   defaultValue = null,
+  onBusyChange,
 }: {
   defaultValue?: string | null;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const id = useId();
   const [value, setValue] = useState<string>(defaultValue ?? "");
   const [error, setError] = useState<string | null>(null);
+  // Bumped on every selection/removal so a slower, superseded read can't
+  // clobber a faster, later one — only the read matching the current token
+  // is allowed to apply its result.
+  const selectionToken = useRef(0);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -43,12 +53,29 @@ export default function PhotoField({
     }
 
     setError(null);
-    setValue(await readAsDataUrl(file));
+    const token = ++selectionToken.current;
+    onBusyChange?.(true);
+    try {
+      const dataUrl = await readAsDataUrl(file);
+      if (token === selectionToken.current) {
+        setValue(dataUrl);
+      }
+    } catch {
+      if (token === selectionToken.current) {
+        setError("Could not read that file — please try again.");
+      }
+    } finally {
+      if (token === selectionToken.current) {
+        onBusyChange?.(false);
+      }
+    }
   }
 
   function handleRemove() {
+    selectionToken.current += 1; // invalidate any in-flight read
     setError(null);
     setValue("");
+    onBusyChange?.(false);
   }
 
   return (
